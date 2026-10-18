@@ -2,19 +2,29 @@
 
 python run_demo.py            # fresh user id each run, so earlier runs don't leak in
 python run_demo.py --user-id eval-zed
+python run_demo.py --report-dir results   # also write live_eval.json + live_eval.md
 """
 
 import argparse
+import json
 import sys
 import textwrap
 from dataclasses import replace
 from datetime import datetime
+from pathlib import Path
 
 from dotenv import load_dotenv
 
 from src.agent_graph import create_agent
-from src.config import load_settings
-from src.evaluator import DEFAULT_SCENARIO, EvaluationReport, ProbeResult, run_scenario
+from src.config import Settings, load_settings
+from src.evaluator import (
+    DEFAULT_SCENARIO,
+    EvaluationReport,
+    ProbeResult,
+    report_to_dict,
+    report_to_markdown,
+    run_scenario,
+)
 
 WRAP_WIDTH = 100
 ANSWER_PREVIEW_CHARS = 400
@@ -45,19 +55,33 @@ def print_report(report: EvaluationReport) -> None:
     print(f"\nRESULT: {'PASS' if report.passed else 'FAIL'}")
 
 
+def write_report(report: EvaluationReport, settings: Settings, report_dir: Path) -> None:
+    model = f"{settings.chat_model} (chat) + {settings.memory_model} (memory)"
+    run_at = f"{datetime.now():%Y-%m-%d %H:%M}"
+    report_dir.mkdir(parents=True, exist_ok=True)
+    data = report_to_dict(report, model=model, run_at=run_at)
+    (report_dir / "live_eval.json").write_text(json.dumps(data, indent=2), encoding="utf-8")
+    (report_dir / "live_eval.md").write_text(report_to_markdown(report, model=model, run_at=run_at), encoding="utf-8")
+    print(f"\nreport written to {report_dir}")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--user-id", help="memory namespace to use (default: a fresh one per run)")
+    parser.add_argument("--report-dir", type=Path, help="write live_eval.json and live_eval.md here")
     args = parser.parse_args()
 
     load_dotenv()
     user_id = args.user_id or f"demo-{datetime.now():%Y%m%d-%H%M%S}"
     scenario = replace(DEFAULT_SCENARIO, user_id=user_id)
-    agent = create_agent(load_settings())
+    settings = load_settings()
+    agent = create_agent(settings)
     print(f"user_id = {user_id}")
     try:
         report = run_scenario(agent, scenario, log=print_turn)
         print_report(report)
+        if args.report_dir:
+            write_report(report, settings, args.report_dir.resolve())
         print("\nWhat the agent remembers now:")
         for memory in agent.memory.list_memories(user_id):
             print(f"  - {memory.text}")

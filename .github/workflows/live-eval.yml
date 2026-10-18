@@ -1,0 +1,41 @@
+name: live-eval
+
+# Manual only: calls the real LLM (costs a few cents per run).
+# Needs a repository secret named ANTHROPIC_API_KEY.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  live-eval:
+    runs-on: ubuntu-latest
+    env:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      MEM0_TELEMETRY: "False"
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Require API key secret
+        run: |
+          if [ -z "$ANTHROPIC_API_KEY" ]; then
+            echo "::error::Add a repository secret named ANTHROPIC_API_KEY to run the live evaluation."
+            exit 1
+          fi
+      - run: pip install -r requirements.txt
+      - name: Run cross-session scenario against the real LLM + mem0
+        run: python run_demo.py --report-dir results
+      - name: Publish results to the job summary
+        if: always()
+        run: |
+          if [ -f results/live_eval.md ]; then cat results/live_eval.md >> "$GITHUB_STEP_SUMMARY"; fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: live-eval-results
+          path: results/
+          if-no-files-found: ignore

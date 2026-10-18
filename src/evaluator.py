@@ -165,3 +165,45 @@ def run_scenario(
         if mentions(memory.text, scenario.stale_keywords) and not mentions(memory.text, scenario.fresh_keywords)
     )
     return EvaluationReport(memory_probes, answer_probes, correction_probe, stale_conflicts)
+
+
+def _probe_dict(probe: ProbeResult) -> dict:
+    return {"label": probe.label, "hit": probe.hit, "evidence": probe.evidence}
+
+
+def report_to_dict(report: EvaluationReport, *, model: str, run_at: str) -> dict:
+    return {
+        "model": model,
+        "run_at": run_at,
+        "metrics": {
+            "memory_recall": report.memory_recall,
+            "answer_recall": report.answer_recall,
+            "correction_applied": report.correction_applied,
+            "stale_conflicts": len(report.stale_conflicts),
+            "passed": report.passed,
+        },
+        "memory_probes": [_probe_dict(probe) for probe in report.memory_probes],
+        "answer_probes": [_probe_dict(probe) for probe in report.answer_probes],
+        "correction_probe": _probe_dict(report.correction_probe),
+        "stale_conflicts": list(report.stale_conflicts),
+    }
+
+
+def _rate_cell(results: Sequence[ProbeResult]) -> str:
+    hits = sum(result.hit for result in results)
+    return f"{_hit_rate(results):.0%} ({hits}/{len(results)})"
+
+
+def report_to_markdown(report: EvaluationReport, *, model: str, run_at: str) -> str:
+    rows = [
+        f"Live run: `{model}`, {run_at}",
+        "",
+        "| Metric | Result |",
+        "|---|---|",
+        f"| Memory recall | {_rate_cell(report.memory_probes)} |",
+        f"| Answer recall | {_rate_cell(report.answer_probes)} |",
+        f"| Correction applied | {'yes' if report.correction_applied else 'no'} |",
+        f"| Stale conflicts | {len(report.stale_conflicts)} |",
+    ]
+    stale_lines = ["", "Stale memories left after the correction:", *(f"- {text}" for text in report.stale_conflicts)]
+    return "\n".join(rows + (stale_lines if report.stale_conflicts else []))

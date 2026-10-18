@@ -171,6 +171,10 @@ fact stored for the user. You can edit a fact, forget it, or add one by hand.
   exists to catch.
 - *Live (`pytest -m live`, `python run_demo.py`):* the only place where fact extraction and
   correction quality can be judged, because both are LLM steps inside mem0.
+  `python run_demo.py --report-dir results` also writes `live_eval.json` and a Markdown table
+  (`live_eval.md`). On GitHub, the manual **live-eval** workflow (Actions → live-eval → Run workflow)
+  runs the same thing with the `ANTHROPIC_API_KEY` repository secret and publishes the table to
+  the job summary.
 
 > **Status:** the live evaluation has not produced results yet. The first run reached the LLM call
 > (mem0 init, local embeddings and Qdrant search all ran for real) and was rejected because the API
