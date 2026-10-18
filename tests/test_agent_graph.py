@@ -90,3 +90,34 @@ def test_sqlite_checkpointer_when_agent_restarts_restores_thread_history(chat_mo
     restarted = CompanionAgent(chat_model, MemoryManager(fake_backend), open_checkpointer(settings), settings)
     assert restarted.history(USER, "t1")[0].content == "remember this thread"
     restarted.close()
+
+
+def _raise_provider_error(messages):
+    raise RuntimeError("credit balance is too low")
+
+
+def test_reply_when_model_call_fails_reraises_and_leaves_no_dangling_user_message(memory_manager, settings):
+    import pytest
+    from langgraph.checkpoint.memory import InMemorySaver
+
+    from src.agent_graph import CompanionAgent
+    from tests.fakes import RecordingChatModel
+
+    failing = CompanionAgent(
+        RecordingChatModel(reply_fn=_raise_provider_error), memory_manager, InMemorySaver(), settings
+    )
+    with pytest.raises(RuntimeError, match="credit balance"):
+        failing.reply(USER, "t1", "lost question")
+    assert failing.history(USER, "t1") == []
+
+
+def test_reply_when_model_fails_mid_thread_keeps_earlier_turns(agent, chat_model):
+    import pytest
+
+    agent.reply(USER, "t1", "first question")
+    chat_model.reply_fn = _raise_provider_error
+    with pytest.raises(RuntimeError):
+        agent.reply(USER, "t1", "second question")
+    history = agent.history(USER, "t1")
+    assert [message.content for message in history][:1] == ["first question"]
+    assert len(history) == 2

@@ -35,3 +35,15 @@ def test_settings_paths_live_under_data_dir(tmp_path):
     settings = load_settings({"DATA_DIR": str(tmp_path)})
     assert settings.checkpoint_path.parent == settings.data_dir
     assert settings.vector_store_path.parent == settings.data_dir
+
+
+def test_load_settings_when_ollama_uses_local_models_and_default_url():
+    settings = load_settings({"LLM_PROVIDER": "ollama"})
+    assert settings.chat_model == PROVIDER_DEFAULTS["ollama"].chat_model
+    assert settings.provider.embedder_provider == "fastembed"
+    assert settings.ollama_base_url == "http://localhost:11434"
+
+
+def test_load_settings_when_ollama_url_set_uses_it():
+    settings = load_settings({"LLM_PROVIDER": "ollama", "OLLAMA_BASE_URL": "http://gpu-box.test:11434"})
+    assert settings.ollama_base_url == "http://gpu-box.test:11434"

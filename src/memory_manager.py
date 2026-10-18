@@ -132,6 +132,8 @@ class MemoryManager:
 def build_mem0_config(settings: Settings) -> dict:
     provider = settings.provider
     llm_config: dict[str, Any] = {"model": settings.memory_model, "temperature": 0.0}
+    if settings.llm_provider == "ollama":
+        llm_config = {**llm_config, "ollama_base_url": settings.ollama_base_url}
     return {
         "llm": {"provider": settings.llm_provider, "config": llm_config},
         "embedder": {

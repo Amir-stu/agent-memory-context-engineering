@@ -7,13 +7,14 @@ Clearing a thread deletes its checkpoint only; the user's long-term memory is un
 """
 
 import sqlite3
+import uuid
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date
 from typing import Annotated, TypedDict
 
 from langchain_core.language_models.chat_models import BaseChatModel
-from langchain_core.messages import AnyMessage, BaseMessage, HumanMessage
+from langchain_core.messages import AnyMessage, BaseMessage, HumanMessage, RemoveMessage
 from langgraph.checkpoint.base import BaseCheckpointSaver
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.message import add_messages
@@ -96,10 +97,16 @@ class CompanionAgent:
         return {"configurable": {"thread_id": scoped}}
 
     def reply(self, user_id: str, thread_id: str, text: str) -> AgentTurn:
-        state = self._graph.invoke(
-            {"messages": [HumanMessage(content=text)], "user_id": validate_identifier(user_id, "user_id")},
-            self._config(user_id, thread_id),
-        )
+        config = self._config(user_id, thread_id)
+        question = HumanMessage(content=text, id=str(uuid.uuid4()))
+        try:
+            state = self._graph.invoke(
+                {"messages": [question], "user_id": validate_identifier(user_id, "user_id")}, config
+            )
+        except Exception:
+            # The checkpoint already holds the question; drop it so the thread has no unanswered turn.
+            self._graph.update_state(config, {"messages": [RemoveMessage(id=question.id)]})
+            raise
         return AgentTurn(
             answer=state["messages"][-1].text,
             memories=tuple(MemoryRecord(**row) for row in state["memories"]),
@@ -125,6 +132,12 @@ class CompanionAgent:
 
 
 def create_chat_model(settings: Settings) -> BaseChatModel:
+    if settings.llm_provider == "ollama":
+        from langchain_ollama import ChatOllama
+
+        return ChatOllama(
+            model=settings.chat_model, base_url=settings.ollama_base_url, num_predict=settings.max_response_tokens
+        )
     if settings.llm_provider == "openai":
         from langchain_openai import ChatOpenAI
 

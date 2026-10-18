@@ -103,3 +103,16 @@ def test_build_mem0_config_when_openai_uses_openai_embedder(tmp_path):
     assert config["llm"]["provider"] == "openai"
     assert config["embedder"]["provider"] == "openai"
     assert config["vector_store"]["config"]["embedding_model_dims"] == 1536
+
+
+def test_build_mem0_config_when_ollama_points_llm_at_local_server(tmp_path):
+    config = build_mem0_config(Settings(data_dir=tmp_path, llm_provider="ollama", memory_model="qwen2.5:7b"))
+    assert config["llm"]["provider"] == "ollama"
+    assert config["llm"]["config"]["ollama_base_url"] == "http://localhost:11434"
+    assert config["llm"]["config"]["model"] == "qwen2.5:7b"
+    assert config["embedder"]["provider"] == "fastembed"
+
+
+def test_build_mem0_config_when_hosted_provider_omits_ollama_url(tmp_path):
+    config = build_mem0_config(Settings(data_dir=tmp_path))
+    assert "ollama_base_url" not in config["llm"]["config"]

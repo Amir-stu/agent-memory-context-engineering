@@ -7,6 +7,7 @@ from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_DATA_DIR = PROJECT_ROOT / "data"
+DEFAULT_OLLAMA_BASE_URL = "http://localhost:11434"
 
 
 @dataclass(frozen=True)
@@ -34,6 +35,14 @@ PROVIDER_DEFAULTS: Mapping[str, ProviderDefaults] = {
         embedding_model="text-embedding-3-small",
         embedding_dims=1536,
     ),
+    # Fully local: no API key. Chat and fact extraction run on an Ollama model.
+    "ollama": ProviderDefaults(
+        chat_model="qwen2.5:7b",
+        memory_model="qwen2.5:7b",
+        embedder_provider="fastembed",
+        embedding_model="BAAI/bge-small-en-v1.5",
+        embedding_dims=384,
+    ),
 }
 
 
@@ -48,6 +57,7 @@ class Settings:
     max_memory_chars: int = 2000
     max_response_tokens: int = 1024
     memory_collection: str = "companion_memories"
+    ollama_base_url: str = DEFAULT_OLLAMA_BASE_URL
 
     @property
     def provider(self) -> ProviderDefaults:
@@ -77,4 +87,5 @@ def load_settings(env: Mapping[str, str] = os.environ) -> Settings:
         llm_provider=provider_name,
         chat_model=env.get("CHAT_MODEL") or defaults.chat_model,
         memory_model=env.get("MEMORY_MODEL") or defaults.memory_model,
+        ollama_base_url=env.get("OLLAMA_BASE_URL") or DEFAULT_OLLAMA_BASE_URL,
     )
