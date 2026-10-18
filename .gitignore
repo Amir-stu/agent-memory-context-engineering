@@ -1,0 +1,13 @@
+.env
+*.db
+*.sqlite
+*.sqlite3
+__pycache__/
+.chroma/
+.venv/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+data/*
+!data/.gitkeep
