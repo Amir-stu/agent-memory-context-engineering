@@ -1,5 +1,7 @@
 # Persistent AI Companion: Agent Memory and Context Engineering
 
+[![ci](https://github.com/Amir-stu/agent-memory-context-engineering/actions/workflows/ci.yml/badge.svg)](https://github.com/Amir-stu/agent-memory-context-engineering/actions/workflows/ci.yml)
+
 A chat agent that remembers each user across sessions. Before every answer it searches the user's
 long-term memory, then writes the relevant facts into the system prompt. After every answer it hands
 the turn to [mem0](https://github.com/mem0ai/mem0), which extracts new facts and reconciles them with
